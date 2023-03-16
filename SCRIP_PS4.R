@@ -2,14 +2,19 @@ rm(list = ls())
 
 require("pacman")
 library(readr)
+library(rtweet)
+library(tidyverse)
+library(knitr)
+require("pacman")
+library(dplyr)
+p_load("tidyverse","textir")
+p_load("tm")
+
 
 train <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/train.csv")
 test <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/test.csv")
 submision_sample <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/sample_submission.csv")
 
-require("pacman")
-p_load("tidyverse","textir")
-p_load("tm")
 
 
 ##-----------------------Limpieza de texto y tokenización---------------------##
@@ -46,7 +51,7 @@ train <- train %>% mutate(texto_tokenizado = map(.x = text,
 train %>% select(texto_tokenizado) %>% head()
 train %>% slice(1) %>% select(texto_tokenizado) %>% pull()
 
-#--->Train
+#--->Test
 test <- test %>% mutate(texto_tokenizado = map(.x = text,
                                                  .f = limpiar_tokenizar))
 test %>% select(texto_tokenizado) %>% head()
@@ -54,7 +59,7 @@ test %>% slice(1) %>% select(texto_tokenizado) %>% pull()
 
 ##--------------------Analisis Exploratorio------------------------------------#
 #Expansión ó unnest
-train_tidy <- train %>% select(-text) %>% unnest()
+train_tidy <- train %>% dplyr::select(-text) %>% unnest()
 train_tidy <- train_tidy %>% rename(token = texto_tokenizado)
 head(train_tidy)
 
@@ -66,10 +71,10 @@ train_tidy %>%  ggplot(aes(x = name)) + geom_bar() + coord_flip() + theme_bw()
 
 #palabras distintas por cada usuario
 
-train_tidy %>% select(name, token) %>% distinct() %>%  group_by(name) %>%
+train_tidy %>% dplyr::select(name, token) %>% distinct() %>%  group_by(name) %>%
   summarise(palabras_distintas = n()) 
 
-train_tidy %>% select(name, token) %>% distinct() %>%
+train_tidy %>% dplyr::select(name, token) %>% distinct() %>%
   ggplot(aes(x = name)) + geom_bar() + coord_flip() + theme_bw()
 
 #Palabras mas usadas por usuario
