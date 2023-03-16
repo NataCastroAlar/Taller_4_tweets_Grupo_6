@@ -140,12 +140,39 @@ comentarios <- tolower(comentarios)
 comentarios <- stripWhitespace(comentarios)
 comentarios <- iconv(comentarios, from = "UTF-8", to="ASCII//TRANSLIT")
 
+
+p_load("stringi")
+comentarios <- stri_trans_general(str = train$text, id = "Latin-ASCII")
+comentarios[1]
+comentarios <- iconv(comentarios, from = "UTF-8", to="ASCII//TRANSLIT")
+comentarios[1]
+
 texts<-VCorpus(VectorSource(comentarios))
-texts
+texts[1]
+
+texts<-tm_map(texts,content_transformer(tolower))
+texts<-tm_map(texts,content_transformer(removePunctuation))
+texts<-tm_map(texts,content_transformer(removeNumbers))
+texts<-tm_map(texts,content_transformer(tolower))
+
+
+p_load(stopwords)
+# Descargamos la lista de las stopwords en español de dos fuentes diferentes y las combinamos
+lista_palabras1 <- stopwords(language = "es", source = "snowball")
+lista_palabras2 <- stopwords(language = "es", source = "nltk")
+lista_palabras <- union(lista_palabras1, lista_palabras2)
+
+texts<-tm_map(texts,removeWords,lista_palabras)
+texts<-tm_map(texts,content_transformer(stripWhitespace))
+inspect(texts[1])
+
 matriz_1<-DocumentTermMatrix(texts)
 matriz_1
-inspect(matriz_1[1:50, 20:40])
-ncol(matriz_1)
+inspect(matriz_1[1,])
+
+matriz_1 <- removeSparseTerms(matriz_1, sparse = 0.95)
+matriz_1
+inspect(matriz_1[1:2,])
 
 
 
