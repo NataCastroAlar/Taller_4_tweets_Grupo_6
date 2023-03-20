@@ -44,6 +44,7 @@ ggplot(data, aes(x = calificacion)) +
   theme_bw() +
   labs(x = "Estrellas por comentario", y = "Cantidad")
 
+
 # Vamos a comenzar creando nuestra variable titulo + comentario
 data["full_text"] = paste(data$titulo_comentario, data$comentario)
 
@@ -104,7 +105,7 @@ wordcloud2(data = n_words)
 
 # Vamos a lematizar
 
-#udpipe_download_model("spanish")
+udpipe_download_model("spanish")
 #udpipe::udpipe_download_model('spanish')
 
 model <- udpipe_load_model(file = "spanish-gsd-ud-2.5-191206.udpipe")
@@ -157,7 +158,7 @@ tf_idf <- TermDocumentMatrix(tm_corpus,
 tf_idf <- as.matrix(tf_idf) %>%
   t() %>%
   as.data.frame()
-
+dim(tf_idf)
 # Revisamos que todo este ok
 data_clean$comentario[1]
 
@@ -180,4 +181,51 @@ tf_idf_reducido <- tf_idf %>%
 
 #Salvamos datos
 save(data, data_clean, tf_idf, tf_idf_reducido, 
-     file = "/Users/victorsanchez/Desktop/MAESTRIA 2023/Big Data and Machine Learning/Repositorios/Taller_4_tweets_Grupo_6/")
+     file = "datos_para_modelar.RData")
+
+#Instalamos paquete keras
+install.packages('keras')
+library(keras)
+
+sum(is.na(data_clean$calificacion))
+
+table(data_clean$calificacion)
+
+Y <- data_clean$calificacion
+Y <- cut(Y, breaks = c(1, 2, 3, 4, 5, Inf))
+dim(Y)
+
+X <- as.matrix(tf_idf_reducido)
+class(X)
+
+dim(X)
+
+set.seed(666)
+n <- nrow(data_clean)
+data_rows <- floor(0.80 * n)
+train_indices <- sample(1:n, data_rows)
+X_train <- X[train_indices, ]
+X_test <- X[-train_indices, ]
+y_train <- Y[train_indices, ]
+y_test <- Y[-train_indices, ]
+
+# Jmm eso nos da menos de 2. Pongamos 3 neuronas para probar entonces. Esto 
+# lo que nos dice es que tenemos muy pocas observaciones! Shit happens
+n_h = nrow(X_train)/(2*(ncol(X_train) + 5))
+
+model <- keras_model_sequential() 
+# Premio para el que me diga la formula de la función de activación softmax
+# y me diga que es
+model %>% 
+  layer_dense(units = 1, activation = 'relu', input_shape = ncol(X_train)) %>% 
+  layer_dropout(rate = 0.5) %>%
+  layer_dense(units = 6, activation = 'softmax')
+summary(model)
+
+model %>% compile(
+  optimizer = 'adam',
+  loss = 'categorical_crossentropy',
+  metrics = c('CategoricalAccuracy')
+)
+
+
