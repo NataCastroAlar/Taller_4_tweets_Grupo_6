@@ -146,7 +146,7 @@ tf_idf_reducido <- tf_idf %>%
 dim(tf_idf_reducido)
 
 #Dónde estamos:
-getwd()
+#getwd()
 
 #data_clean$name <- factor(data_clean$name)
 #data_clean$name <-as.numeric(data_clean$name)
@@ -170,7 +170,7 @@ name<-data_clean%>%
 #La pegamos a la matriz dtm y data.frame
 
 
-matriz_df<-cbind(name, tf_idf_reducido)
+matriz_df<-cbind(name, tf_idf)
 class(matriz_df)
 
 
@@ -184,10 +184,12 @@ test_df <- matriz_df[-train_index,]
 
 
 ###MODELO RANDOM FOREST---------------------------------------------------------
+p_load(caret)
 
-mtry_grid<-expand.grid(mtry =c(10,20, 25,30, 40, 45, 50))
+
+mtry_grid<-expand.grid(mtry =c(500,1000))
 ctrl<- trainControl(method = "cv",
-                    number = 7)
+                    number = 8)
 
 
 p_load(randomForest)
@@ -198,7 +200,7 @@ forest <- train(name~.,
                 trControl = ctrl,
                 tuneGrid=mtry_grid,
                 metric="Accuracy",
-                ntree=30
+                ntree=10
 )
 
 forest
