@@ -86,7 +86,7 @@ matriz_tfidf_test <- tfidf(matriz_tfidf_test, scheme_tf = "prop",
 
 matriz_tfidf_test
 
-all(colnames(matriz_tfidf_test) == colnames(matriz_tfidf_train))
+all(colnames(tf_idf_test) == colnames(tf_idf))
 
 ##--------------------------Vamos a la predicción-----------------------------##
 
@@ -96,7 +96,7 @@ modelo_svm <- svm(x = matriz_tfidf_train, y = as.factor(train$name),
                   type = "C-classification")
 modelo_svm
 
-predicciones <- predict(object = modelo_svm, newdata = matriz_tfidf_test)
+predicciones <- predict(object = modelo_svm, newdata = tf_idf_test)
 predicciones
 
 df_nuevo <- cbind(test, predicciones)
