@@ -11,10 +11,9 @@ p_load("tidyverse","textir")
 p_load("tm")
 
 
-train <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/train.csv")
-test <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/test.csv")
-submision_sample <- read_csv("~/Desktop/MAESTRIA 2023/Big Data and Machine Learning/9. Talleres/Taller 4/Data/sample_submission.csv")
-
+train <- read_csv("~/Victor Ivan/Universidad/Taller 4/Data/train.csv")
+test <- read_csv("~/Victor Ivan/Universidad/Taller 4/Data/test.csv")
+submision_sample <- read_csv("~/Victor Ivan/Universidad/Taller 4/Data/sample_submission.csv")
 
 
 ##-----------------------Limpieza de texto y tokenización---------------------##
@@ -67,20 +66,36 @@ head(train_tidy)
 
 train_tidy %>% group_by(name) %>% summarise(n = n()) 
 
-train_tidy %>%  ggplot(aes(x = name)) + geom_bar() + coord_flip() + theme_bw() 
+train_tidy %>%  ggplot(aes(x = name)) + 
+  geom_bar(fill = "#386641") + 
+  labs(y = 'No Palabras', 
+       x = "Usuario", 
+       title = "Total de Palabras por usuario") +
+  coord_flip() + 
+  scale_y_continuous(labels = scales::number, expand = c(0, 0)) +
+  theme_bw() 
 
 #palabras distintas por cada usuario
 
 train_tidy %>% dplyr::select(name, token) %>% distinct() %>%  group_by(name) %>%
   summarise(palabras_distintas = n()) 
 
-train_tidy %>% dplyr::select(name, token) %>% distinct() %>%
-  ggplot(aes(x = name)) + geom_bar() + coord_flip() + theme_bw()
+train_tidy %>% dplyr::select(name, token) %>% 
+  distinct() %>%
+  ggplot(aes(x = name)) + 
+  geom_bar(fill = "#386641") +
+  labs(y = 'Palabras distintas', 
+       x = "Usuario", 
+       title = "Palabras distintas por usuario") +
+  coord_flip() + 
+  scale_y_continuous(labels = scales::number, expand = c(0, 0)) +
+  theme_minimal()
 
 #Palabras mas usadas por usuario
 
 train_tidy %>% group_by(name, token) %>% count(token) %>% group_by(name) %>%
   top_n(10, n) %>% arrange(name, desc(n)) %>% print(n=30)
+
 
 ##---------------------------------Stop Words---------------------------------##
 
@@ -106,6 +121,7 @@ train_tidy %>% group_by(name, token) %>% count(token) %>% group_by(name) %>%
   labs(y = "", x = "") +
   theme(legend.position = "none") +
   coord_flip() +
+  theme_minimal() +
   facet_wrap(~name,scales = "free", ncol = 1, drop = TRUE)
 
 ##---------------------------------Word Clouds--------------------------------##
@@ -126,34 +142,17 @@ df_grouped <- train_tidy %>% group_by(name, token) %>% count(token) %>%
 
 walk2(.x = df_grouped$name, .y = df_grouped$data, .f = wordcloud_custom)
 
-##--------------------------Clasificación de Tweets---------------------------##
 
-##PENDIENTE
-??createDataPartition
+# Vamos a predecir !!
 
-p_load(caret)
+#----------------------Limpieza train-----------------------------------------##
 
-set.seed(1011)
-inTrain <- createDataPartition(
-  y = train_tidy$name,## La variable dependiente u objetivo 
-  p = .7, ## Usamos 70%  de los datos en el conjunto de entrenamiento 
-  list = FALSE)
+# Limpieza y tokenización de los documentos de entrenamiento
+train$text <- train$text %>% map(.f = limpiar_tokenizar) %>%
+  map(.f = paste, collapse = " ") %>% unlist()
 
-bdtrain_is <- train_tidy[ inTrain,]
-bdtest_is  <- train_tidy[-inTrain,]
-colnames(bdtrain_is)
-
-table(bdtrain_is$name) / length(bdtrain_is$name)
-
-table(bdtest_is$name) / length(bdtest_is$name)
-
-p_load(quanteda)
 # Creación de la matriz documento-término
-# Creación de la matriz documento-término
-
-token_texto <- bdtrain_is$token
-
-matriz_tfidf_train <- dfm(token_texto)
+matriz_tfidf_train <- dfm(x = train$text, remove = stopwords('spanish'))
 
 # Se reduce la dimensión de la matriz eliminando aquellos términos que 
 # aparecen en menos de 5 documentos. Con esto se consigue eliminar ruido.
@@ -162,3 +161,103 @@ matriz_tfidf_train <- dfm_trim(x = matriz_tfidf_train, min_docfreq = 5)
 # Conversión de los valores de la matriz a tf-idf
 matriz_tfidf_train <- tfidf(matriz_tfidf_train, scheme_tf = "prop",
                             scheme_df = "inverse")
+
+matriz_tfidf_train
+
+##---------------------Limpieza test------------------------------------------##
+
+# Limpieza y tokenización de los documentos de test
+test$text <- test$text %>% map(.f = limpiar_tokenizar) %>%
+  map(.f = paste, collapse = " ") %>% unlist()
+# Identificación de las dimensiones de la matriz de entrenamiento
+# Los objetos dm() son de clase S4, se accede a sus elementos mediante @
+dimensiones_matriz_train <- matriz_tfidf_train@Dimnames$features
+# Conversión de vector a diccionario pasando por lista
+dimensiones_matriz_train <- as.list(dimensiones_matriz_train)
+names(dimensiones_matriz_train) <- unlist(dimensiones_matriz_train)
+dimensiones_matriz_train <- dictionary(dimensiones_matriz_train)
+
+# Proyección de los documentos de test
+matriz_tfidf_test <- dfm(x = test$text,
+                         dictionary = dimensiones_matriz_train)
+matriz_tfidf_test <- tfidf(matriz_tfidf_test, scheme_tf = "prop",
+                           scheme_df = "inverse")
+
+matriz_tfidf_test
+
+all(colnames(tf_idf_test) == colnames(tf_idf))
+
+
+
+##---------------------------Predicción---------------------------------------##
+
+install.packages("SparseM")
+library(e1071)
+
+modelo_svm <- svm(x = matriz_tfidf_train, y = as.factor(train$name),
+                  kernel = "linear", cost = 1, scale = TRUE,
+                  type = "C-classification")
+modelo_svm
+
+predicciones <- predict(object = modelo_svm, newdata = matriz_tfidf_test)
+predicciones
+
+##-----------------------Optimizacion de Hiperparametros----------------------##
+
+set.seed(369)
+svm_cv <- tune("svm", train.x =  matriz_tfidf_train,
+               train.y = as.factor(as.factor(train$name)),
+               kernel = "linear", 
+               ranges = list(cost = c(0.1, 0.5, 1, 2.5, 5)))
+summary(svm_cv)
+
+ggplot(data = svm_cv$performances, aes(x = cost, y = error)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = error - dispersion, ymax = error + dispersion)) +
+  theme_bw()
+
+svm_cv$best.parameters
+
+modelo_svm <- svm(x = matriz_tfidf_train, y = as.factor(as.factor(train$name)),
+                  kernel = "linear", cost = 0.1, scale = TRUE)
+
+predicciones2 <- predict(object = modelo_svm, newdata = matriz_tfidf_test)
+predicciones2
+
+
+df_nuevo <- cbind(test, predicciones2)
+df_nuevo
+
+#Submitimos:
+
+Submission2 <- df_nuevo %>%
+  select(id, predicciones2)
+
+Submission2 <- Submission2 %>%
+  rename(name = predicciones2)
+
+setwd("~/Victor Ivan/Universidad/Taller 4/Data/")
+
+write.csv(Submission2, file="submission2.csv", row.names = F)
+
+
+##-----------------------Kernel no lineales-----------------------------------##
+
+svm_cv_radial <- tune("svm", train.x =  matriz_tfidf_train,
+                      train.y = as.factor(as.factor(train$name)), 
+                      kernel = 'radial',
+                      ranges = list(cost = c(0.1, 0.5, 1, 2.5, 5)),
+                      gamma = c(0.5, 1, 2, 3, 4, 5, 10))
+
+svm_cv_radial 
+
+
+ggplot(data = svm_cv_radial$performances, aes(x = cost, y = error, color = as.factor(gamma)))+
+  geom_line() +
+  geom_point() +
+  labs(title = "Error de clasificación vs hiperparámetros C y gamma", color = "gamma") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+
