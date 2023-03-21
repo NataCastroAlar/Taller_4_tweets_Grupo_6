@@ -240,24 +240,3 @@ Submission2 <- Submission2 %>%
 setwd("~/Victor Ivan/Universidad/Taller 4/Data/")
 
 write.csv(Submission2, file="submission2.csv", row.names = F)
-
-
-##-----------------------Kernel no lineales-----------------------------------##
-
-svm_cv_radial <- tune("svm", train.x =  matriz_tfidf_train,
-                      train.y = as.factor(as.factor(train$name)), 
-                      kernel = 'radial',
-                      ranges = list(cost = c(0.1, 0.5, 1, 2.5, 5)),
-                      gamma = c(0.5, 1, 2, 3, 4, 5, 10))
-
-svm_cv_radial 
-
-
-ggplot(data = svm_cv_radial$performances, aes(x = cost, y = error, color = as.factor(gamma)))+
-  geom_line() +
-  geom_point() +
-  labs(title = "Error de clasificación vs hiperparámetros C y gamma", color = "gamma") +
-  theme_bw() +
-  theme(legend.position = "bottom")
-
-
