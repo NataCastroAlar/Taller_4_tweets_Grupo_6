@@ -190,7 +190,7 @@ class(X)
 dim(X)
 
 # Modelo
-set.seed(123)
+set.seed(1234)
 model2 <- keras_model_sequential() 
 # Premio para el que me diga la formula de la función de activación softmax
 # y me diga que es
